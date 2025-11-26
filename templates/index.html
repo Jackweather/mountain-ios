@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Whiteface Conditions</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 20px; }
+    .wf-container { display: grid; gap:12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .wf-box { border:1px solid #ddd; padding:12px; border-radius:6px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.04); display:flex; flex-direction:column; gap:8px; }
+    .wf-box h3 { margin:0; font-size:1rem; }
+    .wf-box .status { font-size:.9rem; color:#666; min-height:1.2em; }
+    .wf-actions { margin-top:auto; display:flex; gap:8px; }
+    button { background:#0366d6; color:#fff; border:0; padding:8px 10px; border-radius:6px; cursor:pointer; }
+    button.secondary { background:#e1e4e8; color:#111; }
+    pre { background:#f6f8fa; padding:12px; border-radius:6px; overflow:auto; max-height:60vh; white-space:pre-wrap; word-break:break-word; }
+    .error { color: #c00; }
+    /* modal */
+    .modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); z-index:9999; }
+    .modal-content { width:90%; max-width:900px; background:#fff; padding:16px; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.3); max-height:90vh; overflow:auto; }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <h1>Whiteface</h1>
+
+  <section id="whiteface-section">
+    <div class="wf-container">
+      <div class="wf-box" id="box-conditions" data-endpoint="/data">
+        <h3>Conditions</h3>
+        <div class="status" id="status-conditions">Loading…</div>
+        <div class="wf-actions">
+          <button class="preview-btn" data-key="conditions">Preview</button>
+          <button class="secondary" onclick="downloadJson('conditions')">Download</button>
+        </div>
+      </div>
+
+      <div class="wf-box" id="box-snow" data-endpoint="/data/snow_rate">
+        <h3>Hourly Snow Rate</h3>
+        <div class="status" id="status-snow">Loading…</div>
+        <div class="wf-actions">
+          <button class="preview-btn" data-key="snow_rate">Preview</button>
+          <button class="secondary" onclick="downloadJson('snow_rate')">Download</button>
+        </div>
+      </div>
+
+      <div class="wf-box" id="box-precip" data-endpoint="/data/precip_type">
+        <h3>Precip Type</h3>
+        <div class="status" id="status-precip">Loading…</div>
+        <div class="wf-actions">
+          <button class="preview-btn" data-key="precip_type">Preview</button>
+          <button class="secondary" onclick="downloadJson('precip_type')">Download</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- modal for preview -->
+  <div id="modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <strong id="modal-title">Preview</strong>
+        <div>
+          <button id="modal-download" class="secondary">Download</button>
+          <button id="modal-close">Close</button>
+        </div>
+      </div>
+      <pre id="modal-pre" aria-live="polite">...</pre>
+    </div>
+  </div>
+
+  <script>
+    // map to store fetched JSON
+    const fetched = {
+      conditions: null,
+      snow_rate: null,
+      precip_type: null
+    };
+
+    // mapping keys to endpoints and status element ids
+    const map = {
+      conditions: { url: '/data', statusId: 'status-conditions' },
+      snow_rate:  { url: '/data/snow_rate', statusId: 'status-snow' },
+      precip_type:{ url: '/data/precip_type', statusId: 'status-precip' }
+    };
+
+    async function fetchAndStore(key) {
+      const s = document.getElementById(map[key].statusId);
+      try {
+        const r = await fetch(map[key].url);
+        if (!r.ok) {
+          let body = {};
+          try { body = await r.json(); } catch(e){}
+          throw new Error(body.error || ('HTTP ' + r.status));
+        }
+        const data = await r.json();
+        fetched[key] = data;
+        s.textContent = 'Loaded';
+        s.classList.remove('error');
+      } catch (err) {
+        s.textContent = err.message || 'Failed to load';
+        s.classList.add('error');
+      }
+    }
+
+    // initial fetch for all
+    Object.keys(map).forEach(k => fetchAndStore(k));
+
+    // modal behavior
+    const modal = document.getElementById('modal');
+    const modalPre = document.getElementById('modal-pre');
+    const modalTitle = document.getElementById('modal-title');
+    const modalClose = document.getElementById('modal-close');
+    const modalDownload = document.getElementById('modal-download');
+    let currentKey = null;
+
+    function showModal(key) {
+      currentKey = key;
+      const data = fetched[key];
+      modalTitle.textContent = key.replace('_',' ');
+      modalPre.textContent = data ? JSON.stringify(data, null, 2) : 'No data loaded';
+      modal.classList.remove('hidden');
+      modal.setAttribute('aria-hidden','false');
+    }
+
+    function hideModal() {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden','true');
+      currentKey = null;
+    }
+
+    // hook up preview buttons
+    document.querySelectorAll('.preview-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const key = btn.getAttribute('data-key');
+        // if not yet fetched, fetch then show
+        if (!fetched[key]) {
+          const statusId = map[key].statusId;
+          document.getElementById(statusId).textContent = 'Loading…';
+          fetchAndStore(key).then(() => showModal(key));
+        } else {
+          showModal(key);
+        }
+      });
+    });
+
+    modalClose.addEventListener('click', hideModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) hideModal(); });
+
+    // download helper
+    function downloadJson(key) {
+      const data = fetched[key];
+      if (!data) {
+        alert('No data to download');
+        return;
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = key + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    modalDownload.addEventListener('click', () => {
+      if (currentKey) downloadJson(currentKey);
+    });
+  </script>
+</body>
+</html>
