@@ -56,9 +56,9 @@ def run_task1():
             print("Flask is running as user:", getpass.getuser())  # Print user for debugging
             scripts = [
                 # Use the required absolute paths under /opt/redner
-                ("/opt/redner/project/src/Whiteface/Whiteface_Snow_rate.py", "/opt/redner/project/src/Whiteface"),
-                ("/opt/redner/project/src/Whiteface/Whiteface_precip_type.py", "/opt/redner/project/src/Whiteface"),
-                ("/opt/redner/project/src/Whiteface/Whiteface.py", "/opt/redner/project/src/Whiteface"),
+                ("/opt/rendner/project/src/Whiteface/Whiteface_Snow_rate.py", "/opt/rendner/project/src/Whiteface"),
+                ("/opt/rendner/project/src/Whiteface/Whiteface_precip_type.py", "/opt/rendner/project/src/Whiteface"),
+                ("/opt/rendner/project/src/Whiteface/Whiteface.py", "/opt/rendner/project/src/Whiteface"),
             ]
             for script, cwd in scripts:
                 if not os.path.exists(script):
