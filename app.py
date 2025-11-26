@@ -1,18 +1,16 @@
 from flask import Flask, render_template, jsonify
-import os, json, threading, subprocess, traceback, getpass
+import os, json
+import threading, subprocess, traceback, getpass, sys
+from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# JSON paths
+# Look for the JSON inside the Whiteface subfolder
 JSON_PATH = os.path.join(BASE_DIR, "Whiteface", "whiteface_conditions.json")
+# Add new JSON files
 JSON_SNOW_PATH = os.path.join(BASE_DIR, "Whiteface", "GFS_snow", "json_files", "whiteface_hourly_snow_rate.json")
 JSON_PRECIP_PATH = os.path.join(BASE_DIR, "Whiteface", "GFS_precip_type", "json_files", "whiteface_precip_type.json")
 
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"))
-
-# Thread-safety
-task_lock = threading.Lock()
-task_running = False
 
 @app.route("/")
 def index():
@@ -26,6 +24,7 @@ def data():
         payload = json.load(f)
     return jsonify(payload)
 
+# New route: hourly snow rate
 @app.route("/data/snow_rate")
 def snow_rate():
     if not os.path.exists(JSON_SNOW_PATH):
@@ -34,6 +33,7 @@ def snow_rate():
         payload = json.load(f)
     return jsonify(payload)
 
+# New route: precip type
 @app.route("/data/precip_type")
 def precip_type():
     if not os.path.exists(JSON_PRECIP_PATH):
@@ -42,49 +42,56 @@ def precip_type():
         payload = json.load(f)
     return jsonify(payload)
 
+# Add a global lock so only one background run-task1 can execute at a time
+TASK_LOCK = threading.Lock()
+
 @app.route("/run-task1")
 def run_task1():
-    global task_running
-
-    with task_lock:
-        if task_running:
-            return "Task is already running. Please wait until it finishes.", 429
-        task_running = True
+    # Try to acquire lock without blocking; if already held, return conflict
+    if not TASK_LOCK.acquire(blocking=False):
+        return "Task already running", 409
 
     def run_all_scripts():
-        global task_running
         try:
-            print("Flask is running as user:", getpass.getuser())
+            print("Flask is running as user:", getpass.getuser())  # Print user for debugging
             scripts = [
-               (os.path.join(BASE_DIR, "Whiteface", "Whiteface_GFS_snow.py"), os.path.join(BASE_DIR, "Whiteface")),
-               (os.path.join(BASE_DIR, "Whiteface", "Whiteface_GFS_precip_type.py"), os.path.join(BASE_DIR, "Whiteface")),
-               (os.path.join(BASE_DIR, "Whiteface", "Whiteface.py"), os.path.join(BASE_DIR, "Whiteface")),
+                # Use the required absolute paths under /opt/redner
+                ("/opt/redner/project/src/Whiteface/Whiteface_Snow_rate.py", "/opt/redner/project/src/Whiteface"),
+                ("/opt/redner/project/src/Whiteface/Whiteface_precip_type.py", "/opt/redner/project/src/Whiteface"),
+                ("/opt/redner/project/src/Whiteface/Whiteface.py", "/opt/redner/project/src/Whiteface"),
             ]
             for script, cwd in scripts:
+                if not os.path.exists(script):
+                    print(f"Script not found, skipping: {script}")
+                    continue
                 try:
                     result = subprocess.run(
-                        ["python", script],
-                        check=True,
-                        cwd=cwd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True
+                        [sys.executable, script],
+                        check=True, cwd=cwd,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
                     )
                     print(f"{os.path.basename(script)} ran successfully!")
                     print("STDOUT:", result.stdout)
                     print("STDERR:", result.stderr)
                 except subprocess.CalledProcessError as e:
-                    print(f"Error running {os.path.basename(script)}:\n{traceback.format_exc()}")
+                    error_trace = traceback.format_exc()
+                    print(f"Error running {os.path.basename(script)}:\n{error_trace}")
                     print("STDOUT:", e.stdout)
                     print("STDERR:", e.stderr)
                 except Exception:
-                    print(f"Unexpected error running {os.path.basename(script)}:\n{traceback.format_exc()}")
+                    # catch-all so a failure doesn't stop remaining scripts
+                    error_trace = traceback.format_exc()
+                    print(f"Unexpected error running {os.path.basename(script)}:\n{error_trace}")
         finally:
-            with task_lock:
-                task_running = False  # release lock when done
+            # Always release the lock so future requests can run
+            try:
+                TASK_LOCK.release()
+            except Exception:
+                pass
 
-    threading.Thread(target=run_all_scripts).start()
-    return "Task started in background! Check logs for output.", 200
+    t = threading.Thread(target=run_all_scripts, daemon=True)
+    t.start()
+    return "Task started in background! Check logs folder for output.", 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
