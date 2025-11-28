@@ -25,6 +25,9 @@
 <body>
   <h1>Whiteface</h1>
 
+  <!-- added: last refresh indicator -->
+  <div id="last-updated" style="margin-bottom:12px;color:#666;font-size:.9rem">Last refresh: never</div>
+
   <section id="whiteface-section">
     <div class="wf-container">
       <div class="wf-box" id="box-conditions" data-endpoint="/data">
@@ -98,6 +101,12 @@
         fetched[key] = data;
         s.textContent = 'Loaded';
         s.classList.remove('error');
+
+        // update last-updated timestamp on successful fetch
+        const lu = document.getElementById('last-updated');
+        if (lu) {
+          lu.textContent = 'Last refresh: ' + new Date().toLocaleString();
+        }
       } catch (err) {
         s.textContent = err.message || 'Failed to load';
         s.classList.add('error');
@@ -106,6 +115,13 @@
 
     // initial fetch for all
     Object.keys(map).forEach(k => fetchAndStore(k));
+
+    // background refresh every 10 minutes (600000 ms)
+    function refreshAll() {
+      Object.keys(map).forEach(k => fetchAndStore(k));
+    }
+    // start timer
+    setInterval(refreshAll, 600000);
 
     // modal behavior
     const modal = document.getElementById('modal');
