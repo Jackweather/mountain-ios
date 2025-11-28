@@ -58,7 +58,7 @@ def run_task1():
                 # Use the required absolute paths under /opt/render
                 ("/opt/render/project/src/Whiteface/Whiteface_Snow_rate.py", "/opt/render/project/src/Whiteface"),
                 ("/opt/render/project/src/Whiteface/Whiteface_precip_type.py", "/opt/render/project/src/Whiteface"),
-                ("/opt/render/project/src/Whiteface/Whiteface.py", "/opt/render/project/src/Whiteface"),
+                
             ]
             for script, cwd in scripts:
                 if not os.path.exists(script):
