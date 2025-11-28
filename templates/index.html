@@ -121,6 +121,12 @@
     // initial fetch on load
     Object.keys(map).forEach(k => fetchAndStore(k));
 
+    // background refresh every 30 seconds (30000 ms)
+    function refreshAll() {
+      Object.keys(map).forEach(k => fetchAndStore(k));
+    }
+    setInterval(refreshAll, 30000);
+
     // --------------------------------------------------------------------
     // MODAL CONTROLS
     // --------------------------------------------------------------------
