@@ -103,7 +103,7 @@
     async function fetchAndStore(key) {
       const s = document.getElementById(map[key].statusId);
       try {
-        const r = await fetch(map[key].url, { cache: 'no-store' });
+        const r = await fetch(map[key].url);
         if (!r.ok) {
           let body = {};
           try { body = await r.json(); } catch(e){}
@@ -138,12 +138,12 @@
     // initial fetch on load
     Object.keys(map).forEach(k => fetchAndStore(k));
 
-    // background refresh every 10 seconds to pick up new uploads
+    // background refresh every 30 seconds (same as your sample)
     function refreshAll() {
       Object.keys(map).forEach(k => fetchAndStore(k));
     }
     // start repeating timer
-    setInterval(refreshAll, 10000);
+    setInterval(refreshAll, 30000);
 
     // --------------------------------------------------------------------
     // MODAL CONTROLS
