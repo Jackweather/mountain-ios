@@ -24,14 +24,7 @@
   </style>
 </head>
 <body>
-  <h1>Whiteface</h1>
-
-  <!-- added: JSON location indicator -->
-  <div id="json-location" style="margin-bottom:8px;color:#333;font-size:.95rem">
-    JSON location on server: <code style="background:#f6f8fa;padding:2px 6px;border-radius:4px;">/var/data</code>
-  </div>
-
-  <!-- last update indicator -->
+  <!-- last update indicator (kept) -->
   <div id="last-updated" style="margin-bottom:12px;color:#666;font-size:.9rem">Last update: N/A</div>
 
   <section id="whiteface-section">
@@ -128,16 +121,29 @@
           lu.textContent = 'Last update: ' + (mtime ? new Date(mtime).toLocaleString() : new Date().toLocaleString());
         }
       } catch (err) {
-        s.textContent = err.message || 'Failed to load';
-        s.classList.add('error');
+        // if the server reports a missing JSON file, show a friendly non-error message
+        const msg = (err && err.message) ? err.message : '';
+        if (msg.includes('whiteface_conditions.json not found') ||
+            msg.includes('whiteface_hourly_snow_rate.json not found') ||
+            msg.includes('whiteface_precip_type.json not found')) {
+          s.textContent = 'No data';
+          s.classList.remove('error');
+        } else {
+          s.textContent = err.message || 'Failed to load';
+          s.classList.add('error');
+        }
       }
     }
 
     // initial fetch on load
     Object.keys(map).forEach(k => fetchAndStore(k));
 
-    // optional: keep background refresh (disabled by default)
-    // setInterval(() => Object.keys(map).forEach(k => fetchAndStore(k)), 30000);
+    // background refresh every 10 seconds to pick up new uploads
+    function refreshAll() {
+      Object.keys(map).forEach(k => fetchAndStore(k));
+    }
+    // start repeating timer
+    setInterval(refreshAll, 10000);
 
     // --------------------------------------------------------------------
     // MODAL CONTROLS
