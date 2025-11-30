@@ -4,14 +4,16 @@ from datetime import datetime, timedelta
 import xarray as xr
 import numpy as np
 import json  # Import json module for JSON file generation
+import gc
 
 # ------------------------
 # SETTINGS
 # ------------------------
 script_dir = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.join(script_dir, "GFS_snow")  # now inside Whiteface folder
-GRIB_DIR = os.path.join(BASE_DIR, "grib_files")  # Updated to use subfolder
-JSON_DIR = os.path.join(BASE_DIR, "json_files")    # New subfolder for JSON files (renamed)
+BASE_DIR = os.path.join(script_dir, "GFS_snow")
+GRIB_DIR = os.path.join(BASE_DIR, "grib_files")
+# write JSON to central dir
+JSON_DIR = "/var/data"
 os.makedirs(GRIB_DIR, exist_ok=True)
 os.makedirs(JSON_DIR, exist_ok=True)
 
@@ -115,12 +117,11 @@ for hour, snow in zip(forecast_hours, hourly_snow):
 
 def generate_snowfall_json(hours, depths):
     """Generate a JSON file with forecast hours and hourly snowfall rates."""
-    # Convert numpy.float32 to Python float
     data = {
-        "forecast_hours": [int(hour) for hour in hours],  # Ensure hours are integers
-        "hourly_snowfall_rates": [float(depth) for depth in depths]  # Convert depths to Python float
+        "forecast_hours": [int(hour) for hour in hours],
+        "hourly_snowfall_rates": [float(depth) for depth in depths]
     }
-    json_path = os.path.join(JSON_DIR, "whiteface_hourly_snow_rate.json")  # Save to JSON_DIR
+    json_path = os.path.join(JSON_DIR, "whiteface_hourly_snow_rate.json")
     with open(json_path, "w") as json_file:
         json.dump(data, json_file, indent=4)
     print(f"Generated snowfall JSON: {json_path}")
@@ -139,3 +140,13 @@ else:
 for f in os.listdir(GRIB_DIR):
     os.remove(os.path.join(GRIB_DIR, f))
 print("All GRIB files deleted.")
+
+# Free large in-memory structures and trigger GC to reduce memory pressure
+try:
+    # clear lists
+    forecast_hours.clear()
+    snow_depths.clear()
+    hourly_snow.clear()
+except Exception:
+    pass
+gc.collect()
