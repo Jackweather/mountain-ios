@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import xarray as xr
 import numpy as np
 import json
+import gc
 
 # ------------------------
 # SETTINGS
@@ -11,7 +12,8 @@ import json
 script_dir = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.join(script_dir, "GFS_precip_type")
 GRIB_DIR = os.path.join(BASE_DIR, "grib_files")
-JSON_DIR = os.path.join(BASE_DIR, "json_files")
+# central json dir
+JSON_DIR = "/var/data"
 os.makedirs(BASE_DIR, exist_ok=True)
 os.makedirs(GRIB_DIR, exist_ok=True)
 os.makedirs(JSON_DIR, exist_ok=True)
@@ -126,3 +128,12 @@ if forecast_hours and precip_types:
     generate_precip_type_json(forecast_hours, precip_types)
 else:
     print("No data available to generate the precipitation type JSON.")
+
+# Final cleanup to reduce memory usage
+try:
+    # remove large objects
+    del forecast_hours[:]
+    del precip_types[:]
+except Exception:
+    pass
+gc.collect()
