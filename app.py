@@ -1,14 +1,14 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, make_response
 import os, json
 import threading, subprocess, traceback, getpass, sys
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Look for the JSON inside the Whiteface subfolder
-JSON_PATH = os.path.join(BASE_DIR, "Whiteface", "whiteface_conditions.json")
-# Add new JSON files
-JSON_SNOW_PATH = os.path.join(BASE_DIR, "Whiteface", "GFS_snow", "json_files", "whiteface_hourly_snow_rate.json")
-JSON_PRECIP_PATH = os.path.join(BASE_DIR, "Whiteface", "GFS_precip_type", "json_files", "whiteface_precip_type.json")
+# Look for the JSON inside /var/data
+JSON_BASE = "/var/data"
+JSON_PATH = os.path.join(JSON_BASE, "whiteface_conditions.json")
+JSON_SNOW_PATH = os.path.join(JSON_BASE, "whiteface_hourly_snow_rate.json")
+JSON_PRECIP_PATH = os.path.join(JSON_BASE, "whiteface_precip_type.json")
 
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"))
 
@@ -22,7 +22,15 @@ def data():
         return jsonify({"error": "whiteface_conditions.json not found"}), 404
     with open(JSON_PATH, "r", encoding="utf-8") as f:
         payload = json.load(f)
-    return jsonify(payload)
+    resp = make_response(jsonify(payload))
+    # prevent client caching and expose mtime
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    try:
+        mtime = datetime.utcfromtimestamp(os.path.getmtime(JSON_PATH)).isoformat() + "Z"
+        resp.headers["X-File-Mtime"] = mtime
+    except Exception:
+        pass
+    return resp
 
 # New route: hourly snow rate
 @app.route("/data/snow_rate")
@@ -31,7 +39,14 @@ def snow_rate():
         return jsonify({"error": "whiteface_hourly_snow_rate.json not found"}), 404
     with open(JSON_SNOW_PATH, "r", encoding="utf-8") as f:
         payload = json.load(f)
-    return jsonify(payload)
+    resp = make_response(jsonify(payload))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    try:
+        mtime = datetime.utcfromtimestamp(os.path.getmtime(JSON_SNOW_PATH)).isoformat() + "Z"
+        resp.headers["X-File-Mtime"] = mtime
+    except Exception:
+        pass
+    return resp
 
 # New route: precip type
 @app.route("/data/precip_type")
@@ -40,7 +55,14 @@ def precip_type():
         return jsonify({"error": "whiteface_precip_type.json not found"}), 404
     with open(JSON_PRECIP_PATH, "r", encoding="utf-8") as f:
         payload = json.load(f)
-    return jsonify(payload)
+    resp = make_response(jsonify(payload))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    try:
+        mtime = datetime.utcfromtimestamp(os.path.getmtime(JSON_PRECIP_PATH)).isoformat() + "Z"
+        resp.headers["X-File-Mtime"] = mtime
+    except Exception:
+        pass
+    return resp
 
 # Add a global lock so only one background run-task1 can execute at a time
 TASK_LOCK = threading.Lock()
