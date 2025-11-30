@@ -26,6 +26,14 @@
 <body>
   <h1>Whiteface</h1>
 
+  <!-- added: JSON location indicator -->
+  <div id="json-location" style="margin-bottom:8px;color:#333;font-size:.95rem">
+    JSON location on server: <code style="background:#f6f8fa;padding:2px 6px;border-radius:4px;">/var/data</code>
+  </div>
+
+  <!-- last update indicator -->
+  <div id="last-updated" style="margin-bottom:12px;color:#666;font-size:.9rem">Last update: N/A</div>
+
   <section id="whiteface-section">
     <div class="wf-container">
 
@@ -102,7 +110,7 @@
     async function fetchAndStore(key) {
       const s = document.getElementById(map[key].statusId);
       try {
-        const r = await fetch(map[key].url);
+        const r = await fetch(map[key].url, { cache: 'no-store' });
         if (!r.ok) {
           let body = {};
           try { body = await r.json(); } catch(e){}
@@ -112,6 +120,13 @@
         fetched[key] = data;
         s.textContent = 'Loaded';
         s.classList.remove('error');
+
+        // update last-updated from header (if provided)
+        const lu = document.getElementById('last-updated');
+        const mtime = r.headers.get('X-File-Mtime');
+        if (lu) {
+          lu.textContent = 'Last update: ' + (mtime ? new Date(mtime).toLocaleString() : new Date().toLocaleString());
+        }
       } catch (err) {
         s.textContent = err.message || 'Failed to load';
         s.classList.add('error');
@@ -121,11 +136,8 @@
     // initial fetch on load
     Object.keys(map).forEach(k => fetchAndStore(k));
 
-    // background refresh every 30 seconds (30000 ms)
-    function refreshAll() {
-      Object.keys(map).forEach(k => fetchAndStore(k));
-    }
-    setInterval(refreshAll, 30000);
+    // optional: keep background refresh (disabled by default)
+    // setInterval(() => Object.keys(map).forEach(k => fetchAndStore(k)), 30000);
 
     // --------------------------------------------------------------------
     // MODAL CONTROLS
