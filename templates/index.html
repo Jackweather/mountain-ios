@@ -55,6 +55,17 @@
         </div>
       </div>
 
+      <!-- SNOW ACCUM (running positive) -->
+      <div class="wf-box" id="box-snow-acc" data-endpoint="/data/snow_acc">
+        <h3>Snow Accum (running positive)</h3>
+        <div class="status" id="status-snowacc">Loading…</div>
+        <div class="wf-actions">
+          <button class="preview-btn" data-key="snow_acc">Preview</button>
+          <button class="secondary" onclick="openJson('snow_acc')">Open JSON</button>
+          <button class="secondary" onclick="downloadJson('snow_acc')">Download</button>
+        </div>
+      </div>
+
       <!-- PRECIP TYPE -->
       <div class="wf-box" id="box-precip" data-endpoint="/data/precip_type">
         <h3>Precip Type</h3>
@@ -90,6 +101,7 @@
     const fetched = {
       conditions: null,
       snow_rate: null,
+      snow_acc: null,
       precip_type: null
     };
 
@@ -97,6 +109,7 @@
     const map = {
       conditions:   { url: '/data',            statusId: 'status-conditions' },
       snow_rate:    { url: '/data/snow_rate',  statusId: 'status-snow' },
+      snow_acc:     { url: '/data/snow_acc',   statusId: 'status-snowacc' },
       precip_type:  { url: '/data/precip_type',statusId: 'status-precip' }
     };
 
@@ -128,6 +141,7 @@
         const msg = (err && err.message) ? err.message : '';
         if (msg.includes('whiteface_conditions.json not found') ||
             msg.includes('whiteface_hourly_snow_rate.json not found') ||
+            msg.includes('whiteface_snod_forecast_running_positive_accum_in.json not found') ||
             msg.includes('whiteface_precip_type.json not found')) {
           s.textContent = 'No data';
           s.classList.remove('error');
