@@ -9,6 +9,7 @@ JSON_BASE = "/var/data"
 JSON_PATH = os.path.join(JSON_BASE, "whiteface_conditions.json")
 JSON_SNOW_PATH = os.path.join(JSON_BASE, "whiteface_hourly_snow_rate.json")
 JSON_PRECIP_PATH = os.path.join(JSON_BASE, "whiteface_precip_type.json")
+JSON_SNOW_ACC_PATH = os.path.join(JSON_BASE, "whiteface_snod_forecast_running_positive_accum_in.json")
 
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"))
 
@@ -64,6 +65,22 @@ def precip_type():
         pass
     return resp
 
+# New route: snow accumulation (running positive totals)
+@app.route("/data/snow_acc")
+def snow_acc():
+    if not os.path.exists(JSON_SNOW_ACC_PATH):
+        return jsonify({"error": "whiteface_snod_forecast_running_positive_accum_in.json not found"}), 404
+    with open(JSON_SNOW_ACC_PATH, "r", encoding="utf-8") as f:
+        payload = json.load(f)
+    resp = make_response(jsonify(payload))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    try:
+        mtime = datetime.utcfromtimestamp(os.path.getmtime(JSON_SNOW_ACC_PATH)).isoformat() + "Z"
+        resp.headers["X-File-Mtime"] = mtime
+    except Exception:
+        pass
+    return resp
+
 # Add a global lock so only one background run-task1 can execute at a time
 TASK_LOCK = threading.Lock()
 
@@ -78,8 +95,9 @@ def run_task1():
             print("Flask is running as user:", getpass.getuser())  # Print user for debugging
             scripts = [
                 # Use the required absolute paths under /opt/render
-                ("/opt/render/project/src/Whiteface/Whiteface_Snow_rate.py", "/opt/render/project/src/Whiteface"),
                 ("/opt/render/project/src/Whiteface/Whiteface_precip_type.py", "/opt/render/project/src/Whiteface"),
+                ("/opt/render/project/src/Whiteface/Whiteface_Snow_ACC_ANL.py", "/opt/render/project/src/Whiteface"),
+                ("/opt/render/project/src/Whiteface/Whiteface_TMP_975.py", "/opt/render/project/src/Whiteface"),
                 
             ]
             for script, cwd in scripts:
